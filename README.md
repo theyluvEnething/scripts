@@ -1,7 +1,5 @@
 # utility — a small cross-platform CLI toolkit
 
-![Preview](preview.png)
-
 A suite of command-line utilities for everyday development: bridging a codebase
 into an LLM and back, managing local ports, reconnecting to SSH servers, and a
 few Unix ergonomics for Windows. Written in Python so the same tools can run on
@@ -9,12 +7,23 @@ Windows, macOS, and Linux.
 
 ## Install
 
-1. Add the `source/` directory to your `PATH`.
+1. Add the `bin/` directory to your `PATH`.
 2. Install the one third-party dependency: `pip install pyperclip`.
 3. Run any command by name (e.g. `ls`, `ports`, `show-port 5000`).
 
-On Windows each tool has a `.bat` launcher; on macOS/Linux run the `.py`
-directly or add small shell aliases.
+`bin/` holds only Windows `.bat` launchers, each a two-line shim that runs the
+matching `src/<name>.py`. On macOS and Linux, put `src/` on your `PATH` and run
+the `.py` files directly, or alias them.
+
+## Layout
+
+```
+bin/           .bat launchers, the directory you put on PATH
+src/           the tools themselves, one .py per command
+src/utilkit/   shared library imported by every tool
+tests/         unit tests for utilkit
+docs/          design notes
+```
 
 ## Commands
 
@@ -85,7 +94,7 @@ anything that ignores it — so the editor can be started fresh. Windows only.
 
 ## Architecture
 
-Shared logic lives in `source/utilkit/` so the tools don't duplicate it:
+Shared logic lives in `src/utilkit/` so the tools don't duplicate it:
 
 - `config.py` — the single source of truth for ignore rules; extendable via
   `~/.config/utilkit/config.toml`.

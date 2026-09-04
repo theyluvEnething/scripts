@@ -1,7 +1,7 @@
 @echo off 
 setlocal
 
-set "SCRIPT_DIR=%~dp0"
+set "SCRIPT_DIR=%~dp0..\src\"
 
 if "%~1"=="" (
     python "%SCRIPT_DIR%sh.py"
