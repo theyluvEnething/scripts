@@ -72,6 +72,17 @@ Common flags: `--only py` / `--only [py,js]` to include only some extensions,
 | `sh <script.sh>` | Run a simple shell script with a lightweight built-in interpreter. |
 | `admin` | Open an elevated prompt in the current directory (Windows). |
 
+### Fortnite / UEFN
+
+| Command | Description |
+| --- | --- |
+| `restart-fortnite` | Close every leftover `EpicWebHelper.exe`. `--dry-run` to preview. |
+
+A crashed UEFN session leaves its `EpicWebHelper.exe` processes running, which
+blocks the next launch until they are ended by hand in Task Manager.
+`restart-fortnite` ends them the same way — a polite close, then a terminate for
+anything that ignores it — so the editor can be started fresh. Windows only.
+
 ## Architecture
 
 Shared logic lives in `source/utilkit/` so the tools don't duplicate it:
@@ -105,6 +116,7 @@ ignore_filenames = ["NOTES.txt"]
 
 ## Disclaimer
 
-`generate-project` and `stop-port` change your filesystem / kill processes.
-`generate-project` confirms before writing and rejects unsafe paths; `stop-port`
-acts immediately (use `--dry-run` or `show-port` first if unsure).
+`generate-project`, `stop-port`, and `restart-fortnite` change your filesystem /
+kill processes. `generate-project` confirms before writing and rejects unsafe
+paths; `stop-port` and `restart-fortnite` act immediately (use `--dry-run`
+first if unsure).
