@@ -58,7 +58,11 @@ def record(host, user, port=22, identity_file=None, label=None):
 
 
 def most_recent_first():
-    return sorted(load(), key=lambda s: s.get("last_used", 0), reverse=True)
+    """Newest first. Ties break on insertion order, since ``record`` appends and
+    Windows' ~16 ms clock resolution gives back-to-back records one timestamp."""
+    entries = list(enumerate(load()))
+    entries.sort(key=lambda pair: (pair[1].get("last_used", 0), pair[0]), reverse=True)
+    return [entry for _, entry in entries]
 
 
 def remove(index):

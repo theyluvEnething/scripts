@@ -88,7 +88,8 @@ def main():
                 f"{ui.style(port, 'bold')} is a PID ({name}), not a port — "
                 f"it is listening on: {ui.style(listed, 'bold')}"
             )
-            print(f"  Try:  {ui.style(f'{prog} {owned[0]['port']}', 'bold')}")
+            suggestion = f"{prog} {owned[0]['port']}"
+            print(f"  Try:  {ui.style(suggestion, 'bold')}")
         else:
             ui.info(f"Nothing is listening on port {ui.style(port, 'bold')}.")
         sys.exit(1)
