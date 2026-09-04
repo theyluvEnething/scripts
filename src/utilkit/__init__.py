@@ -6,6 +6,8 @@ rules, project walking, clipboard handling, and prompts live in exactly one
 location instead of being copy-pasted across a dozen scripts.
 """
 
+__version__ = "0.0.1"
+
 __all__ = [
     "config",
     "walk",
