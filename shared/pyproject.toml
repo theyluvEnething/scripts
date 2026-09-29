@@ -1,0 +1,8 @@
+# The environment macos/bin runs the shared tools in, through uv, so nothing goes into the
+# system Python. Windows runs them with its own Python and `pip install pyperclip`.
+# Keep version in step with utilkit/__init__.py.
+[project]
+name = "utilkit"
+version = "0.0.1"
+requires-python = ">=3.11"
+dependencies = ["pyperclip"]

@@ -7,7 +7,7 @@ import tempfile
 import unittest
 import zipfile
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from utilkit import collate, fileops, sessions, ui, walk  # noqa: E402
 
@@ -136,12 +136,12 @@ class TestUI(unittest.TestCase):
 class TestExtractTraversal(unittest.TestCase):
     def test_zip_members_detected(self):
         # The extract tool's _check_members must flag traversal entries.
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
         import importlib.util
 
         spec = importlib.util.spec_from_file_location(
             "extract_tool",
-            os.path.join(os.path.dirname(__file__), "..", "src", "extract.py"),
+            os.path.join(os.path.dirname(__file__), "..", "extract.py"),
         )
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)

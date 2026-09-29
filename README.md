@@ -1,29 +1,35 @@
-# utility — a small cross-platform CLI toolkit
+# utility
 
-A suite of command-line utilities for everyday development: bridging a codebase
-into an LLM and back, managing local ports, reconnecting to SSH servers, and a
-few Unix ergonomics for Windows. Written in Python so the same tools can run on
-Windows, macOS, and Linux.
+My own tools for the Windows PC and the Mac: bridging a codebase into an LLM and
+back, managing local ports, reconnecting to SSH servers, and small fixes for
+whatever each system lacks. Tools that run on both systems live in `shared/`,
+everything tied to one system in `windows/` or `macos/`.
 
 ## Install
 
-1. Add the `bin/` directory to your `PATH`.
-2. Install the one third-party dependency: `pip install pyperclip`.
-3. Run any command by name (e.g. `ls`, `ports`, `show-port 5000`).
+On Windows, add `windows\bin` to your user `PATH` and install the one
+third-party dependency: `pip install pyperclip`.
 
-`bin/` holds only Windows `.bat` launchers, each a two-line shim that runs the
-matching `src/<name>.py`. On macOS and Linux, put `src/` on your `PATH` and run
-the `.py` files directly, or alias them.
+On macOS, add `macos/bin` to your `PATH` (mac-setup's `.zshrc` does this). Each
+launcher runs its tool with `uv run --project shared`, so the first run creates
+`shared/.venv` from `shared/pyproject.toml` and nothing goes into the system
+Python.
+
+Then run any command by name (e.g. `ports`, `show-port 5000`).
 
 ## Layout
 
 ```
-bin/           .bat launchers, the directory you put on PATH
-src/           the tools themselves, one .py per command
-src/utilkit/   shared library imported by every tool
-tests/         unit tests for utilkit
-docs/          design notes
+shared/          Python tools that run on Windows and macOS, one .py per command
+shared/utilkit/  shared library imported by every tool
+shared/tests/    unit tests for utilkit
+windows/         Windows-only tools: ls, cwd, sh, restart-fortnite
+windows/bin/     .bat launchers, the folder Windows has on PATH
+macos/bin/       launchers for the shared tools, the folder the Mac has on PATH
+docs/            design notes
 ```
+
+Every launcher is a small shim named after its command.
 
 ## Commands
 
@@ -73,6 +79,9 @@ Common flags: `--only py` / `--only [py,js]` to include only some extensions,
 
 ### Unix ergonomics
 
+`extract` runs on both systems. `ls`, `cwd`, `sh` and `admin` are Windows only,
+because macOS has its own.
+
 | Command | Description |
 | --- | --- |
 | `ls [path]` | Colorized, grid-formatted directory listing. |
@@ -94,7 +103,7 @@ anything that ignores it — so the editor can be started fresh. Windows only.
 
 ## Architecture
 
-Shared logic lives in `src/utilkit/` so the tools don't duplicate it:
+Shared logic lives in `shared/utilkit/` so the tools don't duplicate it:
 
 - `config.py` — the single source of truth for ignore rules; extendable via
   `~/.config/utilkit/config.toml`.
@@ -109,7 +118,8 @@ Shared logic lives in `src/utilkit/` so the tools don't duplicate it:
 ## Tests
 
 ```
-python tests/test_utilkit.py
+python shared/tests/test_utilkit.py                    # Windows
+uv run --project shared shared/tests/test_utilkit.py   # macOS
 ```
 
 ## Configuration
