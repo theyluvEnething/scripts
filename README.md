@@ -1,4 +1,4 @@
-# utility
+# toybox
 
 My own tools for the Windows PC and the Mac: bridging a codebase into an LLM and
 back, managing local ports, reconnecting to SSH servers, and small fixes for
