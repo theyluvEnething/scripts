@@ -237,8 +237,9 @@ def card(title, fields, *, accent="cyan"):
 
     # ``span`` is the number of columns strictly between the two border glyphs.
     # Body rows render as: v + span(=" " + content + padding + " ") + v.
+    # The title gets content_w - 3 columns (see title_text), so reserve 3 or it loses a character.
     content_w = max([visible_len(line) for line in body_lines if line]
-                    + [visible_len(title) + 2], default=10)
+                    + [visible_len(title) + 3], default=10)
     max_content = max(term_width() - 4, 16)
     content_w = min(content_w, max_content)
     span = content_w + 2  # one space margin on each side

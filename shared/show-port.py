@@ -37,7 +37,7 @@ def _render_process(entry, port):
     pid = entry["pid"]
     detail = ports.process_detail(pid)
     name = (detail or {}).get("name") or entry["process"]
-    exe = f"{name}.exe" if not name.endswith(".exe") else name
+    exe = f"{name}.exe" if os.name == "nt" and not name.endswith(".exe") else name
 
     fields = [("PID", ui.style(str(pid), "bold"))]
 

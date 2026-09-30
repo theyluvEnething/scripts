@@ -75,12 +75,20 @@ def _from_ss():
     return rows
 
 
+def _lsof_unescape(name):
+    """lsof writes spaces and non-ASCII bytes in COMMAND as ``\\xNN``."""
+    raw = re.sub(rb"\\x([0-9a-fA-F]{2})",
+                 lambda m: bytes([int(m.group(1), 16)]), name.encode())
+    return raw.decode("utf-8", "replace")
+
+
 def _from_lsof():
     if not shutil.which("lsof"):
         return None
     try:
+        # +c 0: full command names instead of lsof's default 9 characters
         out = subprocess.run(
-            ["lsof", "-nP", "-iTCP", "-sTCP:LISTEN"],
+            ["lsof", "+c", "0", "-nP", "-iTCP", "-sTCP:LISTEN"],
             capture_output=True, text=True, timeout=15,
         ).stdout
     except (OSError, subprocess.SubprocessError):
@@ -95,7 +103,7 @@ def _from_lsof():
             continue
         rows.append({
             "port": int(port_match.group(1)), "pid": int(cols[1]),
-            "process": cols[0], "state": "LISTEN", "cmdline": "",
+            "process": _lsof_unescape(cols[0]), "state": "LISTEN", "cmdline": "",
         })
     return rows
 
