@@ -25,6 +25,7 @@ shared/utilkit/  shared library imported by every tool
 shared/tests/    unit tests for utilkit
 windows/         Windows-only tools: ls, cwd, sh, restart-fortnite
 windows/bin/     .bat launchers, the folder Windows has on PATH
+macos/awake/     awake, a Swift menu bar app and command line (see below)
 macos/bin/       launchers for the shared tools, the folder the Mac has on PATH
 docs/            design notes
 ```
@@ -101,6 +102,62 @@ blocks the next launch until they are ended by hand in Task Manager.
 `restart-fortnite` ends them the same way — a polite close, then a terminate for
 anything that ignores it — so the editor can be started fresh. Windows only.
 
+### awake (macOS)
+
+Keeps a MacBook running with the lid closed while Claude Code or Codex is
+working, and lets it sleep normally otherwise. On Apple Silicon without an
+external display, only the kernel's `SleepDisabled` switch (`pmset -a
+disablesleep`) does that; `caffeinate` only stops idle sleep. awake owns that
+switch.
+
+Claude Code and Codex hooks mark each session as working from a prompt or
+tool call until its turn ends. The switch is on while a turn runs and goes
+off a minute after the last one finishes; if the lid is closed by then, awake
+puts the Mac to sleep. A turn that sends no hook for 15 minutes, or whose
+agent process is gone, no longer counts.
+
+The cup in the menu bar shows what closing the lid does: an outline cup sleeps,
+a filled cup keeps running, and a badge means the switch isn't what awake
+wants. The menu has:
+
+- **Awake**: keep the Mac running while an agent works. Unticked, the lid
+  sleeps as usual.
+- **Sleep Now**: shown while the switch is on, because macOS ignores the Apple
+  menu's Sleep then.
+- **Settings**: also lets it **Stay awake indefinitely**, until you turn it off,
+  restart or log out. The window shows what is holding the Mac awake and the
+  battery state.
+
+Whatever the mode, awake lets the Mac sleep at 20 % battery unless it is
+charging (until it is back above 25 %), at 40 °C battery temperature (until
+below 36 °C) and under serious thermal pressure. With the lid closed on
+battery it switches to Low Power and restores your energy mode afterwards. It
+never touches display settings. Changes go to `~/Library/Logs/awake.log`.
+
+| Command | Description |
+| --- | --- |
+| `awake run -- <command>` | Keep the Mac running while the command runs; passes Ctrl-C through and returns its exit code. |
+| `awake for 90m` | Keep it running for a time (`90s`, `2h`, `1h30m`). `awake stop` ends every run and for. |
+| `awake set off\|auto\|on` | Same as the menu: off, while agents work, indefinitely. |
+| `awake status` | Mode, switch, lid, battery, temperature, guards and what holds the Mac awake. |
+
+Install (no sudo), then let mac-setup add the root parts:
+
+```
+macos/awake/install.sh
+~/Programmieren/Setup/mac-setup/scripts/admin.sh
+```
+
+`install.sh` builds `~/Applications/Awake.app`, starts it at login with two
+LaunchAgents (the menu, and a check every 30 seconds that keeps working if the
+menu crashes or is quit) and adds its hooks to `~/.codex/hooks.json`; trust
+them once with `/hooks` in Codex. `admin.sh` adds awake's Claude Code hooks to
+the managed policy and installs `/etc/sudoers.d/awake`, which allows exactly
+`pmset -a disablesleep 0|1` and `pmset -b powermode 0|1|2` without a password.
+
+Uninstall with `macos/awake/install.sh --uninstall`, then run `admin.sh` again:
+without Awake.app it removes the Claude hooks and the sudoers rule.
+
 ## Architecture
 
 Shared logic lives in `shared/utilkit/` so the tools don't duplicate it:
@@ -116,6 +173,8 @@ Shared logic lives in `shared/utilkit/` so the tools don't duplicate it:
   consoles).
 
 ## Tests
+
+awake: `swift test --package-path macos/awake --scratch-path macos/awake/build`
 
 ```
 python shared/tests/test_utilkit.py                    # Windows
