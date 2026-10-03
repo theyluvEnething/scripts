@@ -46,6 +46,16 @@ Port lookups use PowerShell (`Get-NetTCPConnection`) on Windows and `ss`/`lsof`
 on Unix — invoked internally, so the tools work the same from `cmd`,
 PowerShell, or a Unix terminal.
 
+### Wake-on-LAN
+
+| Command | Description |
+| --- | --- |
+| `wake <NAME\|MAC>` | Turn on a sleeping or shut-down computer on the same network. |
+
+Names go in `~/.config/utilkit/config.toml` as a `[wake]` table, e.g. `pc = "34:5a:60:57:c2:e6"`.
+The target needs Wake-on-LAN enabled in its BIOS and network adapter, and the packet only
+reaches the local network, so from outside home a device there has to send it.
+
 ### SSH sessions
 
 | Command | Description |
