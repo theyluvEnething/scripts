@@ -116,40 +116,41 @@ anything that ignores it — so the editor can be started fresh. Windows only.
 
 Keeps a MacBook running with the lid closed while Claude Code or Codex is
 working, and lets it sleep normally otherwise. On Apple Silicon without an
-external display, only the kernel's `SleepDisabled` switch (`pmset -a
-disablesleep`) does that; `caffeinate` only stops idle sleep. awake owns that
-switch.
+external display, only turning lid sleep off with the kernel's `SleepDisabled`
+setting (`pmset -a disablesleep`) does that, and it turns off every other kind
+of sleep with it; `caffeinate` only stops idle sleep. awake owns that setting.
 
 Claude Code and Codex hooks mark each session as working from a prompt or
-tool call until its turn ends. The switch is on while a turn runs and goes
-off a minute after the last one finishes; if the lid is closed by then, awake
-puts the Mac to sleep. A turn that sends no hook for 15 minutes, or whose
+tool call until its turn ends. Lid sleep is off while a turn runs and comes
+back on a minute after the last one finishes; if the lid is closed by then,
+awake puts the Mac to sleep. A turn that sends no hook for 15 minutes, or whose
 agent process is gone, no longer counts.
 
 The cup in the menu bar shows what closing the lid does: an outline cup sleeps,
-a filled cup keeps running, and a badge means the switch isn't what awake
-wants. The menu has:
+a filled cup keeps running, and a badge means lid sleep was changed outside
+Awake or the sudo rule is missing. The menu has:
 
-- **Awake**: keep the Mac running while an agent works. Unticked, the lid
-  sleeps as usual.
-- **Sleep Now**: shown while the switch is on, because macOS ignores the Apple
+- **Awake**: keeps the Mac running with the lid closed while Claude or Codex
+  works. Unticked, the mode is Off: closing the lid puts the Mac to sleep.
+- **Sleep Now**: shown while lid sleep is off, because macOS ignores the Apple
   menu's Sleep then.
-- **Settings**: also lets it **Stay awake indefinitely**, until you turn it off,
-  restart or log out. The window shows what is holding the Mac awake and the
-  battery state.
+- **Settings…**: also has **Stay awake indefinitely**: even when nothing runs,
+  until you turn it off, restart or log out. The window shows lid sleep, what
+  holds the Mac awake, the battery, the thermal state and Low Power.
 
 Whatever the mode, awake lets the Mac sleep at 20 % battery unless it is
 charging (until it is back above 25 %), at 40 °C battery temperature (until
-below 36 °C) and under serious thermal pressure. With the lid closed on
-battery it switches to Low Power and restores your energy mode afterwards. It
-never touches display settings. Changes go to `~/Library/Logs/awake.log`.
+below 36 °C) and when the thermal state is high or critical. With the lid
+closed on battery it switches to Low Power and restores your energy mode
+afterwards. It never touches display settings. Changes go to
+`~/Library/Logs/awake.log`.
 
 | Command | Description |
 | --- | --- |
 | `awake run -- <command>` | Keep the Mac running while the command runs; passes Ctrl-C through and returns its exit code. |
 | `awake for 90m` | Keep it running for a time (`90s`, `2h`, `1h30m`). `awake stop` ends every run and for. |
-| `awake set off\|auto\|on` | Same as the menu: off, while agents work, indefinitely. |
-| `awake status` | Mode, switch, lid, battery, temperature, guards and what holds the Mac awake. |
+| `awake set off\|auto\|on` | Choose Off, Awake or Stay awake indefinitely. |
+| `awake status` | The Settings window's rows: mode, lid sleep, what holds the Mac awake, the battery, the thermal state and Low Power. |
 
 Install (no sudo), then let mac-setup add the root parts:
 
@@ -165,7 +166,8 @@ them once with `/hooks` in Codex. `admin.sh` adds awake's Claude Code hooks to
 the managed policy and installs `/etc/sudoers.d/awake`, which allows exactly
 `pmset -a disablesleep 0|1` and `pmset -b powermode 0|1|2` without a password.
 It also adds a LaunchDaemon that switches lid sleep back on at boot, because
-macOS keeps `disablesleep` across a restart and a crash could leave it off.
+macOS keeps `disablesleep` across a restart and a crash could leave lid sleep
+off.
 
 Uninstall with `macos/awake/install.sh --uninstall`, then run `admin.sh` again:
 without Awake.app it removes the Claude hooks, the sudoers rule and the boot-time
