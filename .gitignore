@@ -158,6 +158,7 @@ src-tauri/gen/
 src-tauri/icons/
 .claude/
 .planning/
+temp/
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
