@@ -164,9 +164,12 @@ menu crashes or is quit) and adds its hooks to `~/.codex/hooks.json`; trust
 them once with `/hooks` in Codex. `admin.sh` adds awake's Claude Code hooks to
 the managed policy and installs `/etc/sudoers.d/awake`, which allows exactly
 `pmset -a disablesleep 0|1` and `pmset -b powermode 0|1|2` without a password.
+It also adds a LaunchDaemon that switches lid sleep back on at boot, because
+macOS keeps `disablesleep` across a restart and a crash could leave it off.
 
 Uninstall with `macos/awake/install.sh --uninstall`, then run `admin.sh` again:
-without Awake.app it removes the Claude hooks and the sudoers rule.
+without Awake.app it removes the Claude hooks, the sudoers rule and the boot-time
+reset.
 
 ## Architecture
 
