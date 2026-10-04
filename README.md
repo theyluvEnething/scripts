@@ -26,6 +26,7 @@ shared/tests/    unit tests for utilkit
 windows/         Windows-only tools: ls, cwd, sh, restart-fortnite
 windows/bin/     .bat launchers, the folder Windows has on PATH
 macos/awake/     awake, a Swift menu bar app and command line (see below)
+macos/power-log/ logs battery drain and the apps behind it every 5 minutes
 macos/bin/       launchers for the shared tools, the folder the Mac has on PATH
 docs/            design notes
 ```
@@ -185,6 +186,16 @@ It signs with the keychain's Developer ID Application identity of team
 `KSF29ZC99W` and notarizes with the notarytool keychain profile `notary`;
 `AWAKE_TEAM_ID`, `AWAKE_SIGN_IDENTITY` and `AWAKE_NOTARY_PROFILE` override them.
 `--skip-notarize` checks everything else with any identity.
+
+### power-log (macOS)
+
+`macos/power-log/install.sh` runs `power-log` every 5 minutes through a
+LaunchAgent. Each run adds a line to `~/Library/Logs/power-log.log` with the
+battery percentage, the battery's raw charge in mAh, its power in watts
+(negative while discharging), charger, lid and lid sleep, and the eight apps
+with the highest Energy Impact at that moment, as Activity Monitor shows it. A gap between
+lines means the Mac slept. The log keeps about 1–2 MB. `install.sh
+--uninstall` removes it.
 
 ## Architecture
 

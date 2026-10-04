@@ -1,0 +1,28 @@
+#!/bin/zsh
+# One line per run in ~/Library/Logs/power-log.log: battery percent, the battery's raw charge, its
+# power in watts (negative while discharging), charger, lid, lid sleep, and the apps that used the
+# most energy over the last two seconds, by the Energy Impact column of top and Activity Monitor.
+# A gap between lines means the Mac was asleep. launchd runs this every 5 minutes (see install.sh).
+log="$HOME/Library/Logs/power-log.log"
+
+battery="$(ioreg -r -n AppleSmartBattery)"
+root="$(ioreg -r -n IOPMrootDomain -d 1)"
+value() { print -r -- "$1" | awk -v key="\"$2\"" '$1 == key { print $3; exit }'; }
+
+percent="$(pmset -g batt | grep -oE '[0-9]+%' | head -1)"
+raw="$(value "$battery" AppleRawCurrentCapacity)/$(value "$battery" AppleRawMaxCapacity) mAh"
+watts="$(awk -v mv="$(value "$battery" Voltage)" -v ma="$(value "$battery" InstantAmperage)" \
+  'BEGIN { if (ma > 2^63) ma -= 2^64; printf "%+.1f W", mv * ma / 1e6 }')"
+charger="$([ "$(value "$battery" ExternalConnected)" = Yes ] && echo charger || echo battery)"
+lid="$([ "$(value "$root" AppleClamshellState)" = Yes ] && echo "lid closed" || echo "lid open")"
+lidsleep="$([ "$(value "$root" SleepDisabled)" = Yes ] && echo "lid sleep off" || echo "lid sleep on")"
+apps="$(top -l 2 -s 2 -n 8 -o power -stats command,power | awk '
+  /^COMMAND/ { n++; next }
+  n == 2 && NF >= 2 { name = $1; for (i = 2; i < NF; i++) name = name " " $i; out = out (out ? ", " : "") name " " $NF }
+  END { print out }')"
+
+# Past 2 MB, keep the newest half.
+if [ -f "$log" ] && [ "$(stat -f %z "$log")" -gt 2000000 ]; then
+  tail -c 1000000 "$log" | tail -n +2 > "$log.tmp" && mv "$log.tmp" "$log"
+fi
+print -r -- "$(date '+%Y-%m-%d %H:%M')  $percent  $raw  $watts  $charger  $lid  $lidsleep  | $apps" >> "$log"
