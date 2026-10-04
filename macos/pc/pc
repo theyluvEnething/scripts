@@ -15,7 +15,7 @@ usage() {
 pc               open PowerShell on the PC (same as ssh pc)
 pc status        check every way in: Tailscale, SSH, T3 Code, Moonlight, RustDesk
 pc screen        stream the PC's desktop to Moonlight, quality picked by the network you are on
-pc rustdesk      start RustDesk on the PC and connect over Tailscale (pc rustdesk stop ends it)
+pc rustdesk      connect to the PC with RustDesk, directly over Tailscale
 pc wake          turn the PC on (home network only)
 EOF
 }
@@ -95,8 +95,10 @@ status() {
   elif [ "${displays:-0}" = 0 ]; then line Moonlight warn "Sunshine runs, but no monitor is active on the PC, so the stream may stay black"
   else line Moonlight ok "Sunshine runs, $displays monitor(s) active"; fi
 
-  if [ "$rdpassword" != set ]; then line RustDesk warn "no permanent password: every connection waits for someone at the PC to accept"
-  else line RustDesk ok "on demand, now ${rustdesk:-unknown} (pc rustdesk starts it)"; fi
+  if [ "$rustdesk" != Running ]; then line RustDesk FAIL "the RustDesk service is ${rustdesk:-unknown} on the PC (ssh pc \"Start-Service RustDesk\")"
+  elif [ "$rdpassword" != set ]; then line RustDesk warn "no permanent password: every connection waits for someone at the PC to accept"
+  elif ! nc -z -G 4 "$ip" 21118 2>/dev/null; then line RustDesk FAIL "the service runs but does not answer on $ip:21118"
+  else line RustDesk ok "running, answers on $ip:21118"; fi
   return $bad
 }
 
@@ -117,24 +119,24 @@ screen() {
   open -a Moonlight --args stream "$name" Desktop "$@" --display-mode windowed --absolute-mouse --frame-pacing --vsync
 }
 
+# The PC's RustDesk service runs from boot; start it anyway in case someone stopped it.
 rustdesk() {
-  if [ "${1:-}" = stop ]; then
-    ssh pc 'Stop-Service RustDesk' && echo "RustDesk stopped on $name."; return
+  if ! nc -z -G 2 "$ip" 21118 2>/dev/null; then
+    ssh pc 'Start-Service RustDesk' || return 1
+    for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do nc -z -G 2 "$ip" 21118 2>/dev/null && break; sleep 1; done
   fi
-  ssh pc 'Start-Service RustDesk' || return 1
-  for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do nc -z -G 2 "$ip" 21118 2>/dev/null && break; sleep 1; done
   if ! nc -z -G 2 "$ip" 21118 2>/dev/null; then
     echo "pc: RustDesk on $name does not listen on 21118; re-run new-pc-setup's remote-access.ps1" >&2; return 1
   fi
   open -a RustDesk --args --connect "$ip"
-  echo "RustDesk runs on $name; connecting to $ip. End it with: pc rustdesk stop"
+  echo "Connecting to $name ($ip) with RustDesk."
 }
 
 case ${1:-} in
   '') exec ssh pc ;;
   status) status ;;
   screen) screen ;;
-  rustdesk) shift; rustdesk "$@" ;;
+  rustdesk) rustdesk ;;
   wake) exec "$(dirname "$0")/../bin/wake" pc ;;
   -h|--help|help) usage ;;
   *) usage >&2; exit 2 ;;
