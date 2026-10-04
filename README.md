@@ -128,7 +128,7 @@ agent process is gone, no longer counts.
 
 The cup in the menu bar shows what closing the lid does: an outline cup sleeps,
 a filled cup keeps running, and a badge means lid sleep was changed outside
-Awake or the sudo rule is missing. The menu has:
+Awake or its helper isn't set up. The menu has:
 
 - **Awake**: keeps the Mac running with the lid closed while Claude or Codex
   works. Unticked, the mode is Off: closing the lid puts the Mac to sleep.
@@ -137,6 +137,9 @@ Awake or the sudo rule is missing. The menu has:
 - **Settings…**: also has **Stay awake indefinitely**: even when nothing runs,
   until you turn it off, restart or log out. The window shows lid sleep, what
   holds the Mac awake, the battery, the thermal state and Low Power.
+- **Uninstall Awake…**: turns lid sleep back on, removes the helper, the login
+  items, the Codex hooks and Awake's state and log, and moves the app to the
+  Trash.
 
 Whatever the mode, awake lets the Mac sleep at 20 % battery unless it is
 charging (until it is back above 25 %), at 40 °C battery temperature (until
@@ -152,26 +155,36 @@ afterwards. It never touches display settings. Changes go to
 | `awake set off\|auto\|on` | Choose Off, Awake or Stay awake indefinitely. |
 | `awake status` | The Settings window's rows: mode, lid sleep, what holds the Mac awake, the battery, the thermal state and Low Power. |
 
-Install (no sudo), then let mac-setup add the root parts:
+To install, open `Awake-<version>.dmg` from the
+[releases](https://github.com/theyluvEnething/toybox/releases), drag Awake to
+Applications and open it there. **Set Up Awake** in its setup window installs:
 
-```
-macos/awake/install.sh
-~/Programmieren/Setup/mac-setup/scripts/admin.sh
-```
+- A helper that runs as root and does nothing but `pmset -a disablesleep 0|1`
+  and `pmset -b powermode 0|1|2`, and only for Awake's own app: it checks that
+  the caller is signed by Awake's team as Awake. It also switches lid sleep back
+  on once at every startup, because macOS keeps `disablesleep` across a restart
+  and a crash could leave lid sleep off, and whenever the helper is switched
+  off or the app is gone. macOS asks you to allow it in System Settings >
+  General > Login Items & Extensions.
+- Two login items: the menu, and a check every 30 seconds that keeps working if
+  the menu crashes or is quit.
+- Its hooks in `~/.codex/hooks.json`, next to your own; trust them once with
+  `/hooks` in Codex.
 
-`install.sh` builds `~/Applications/Awake.app`, starts it at login with two
-LaunchAgents (the menu, and a check every 30 seconds that keeps working if the
-menu crashes or is quit) and adds its hooks to `~/.codex/hooks.json`; trust
-them once with `/hooks` in Codex. `admin.sh` adds awake's Claude Code hooks to
-the managed policy and installs `/etc/sudoers.d/awake`, which allows exactly
-`pmset -a disablesleep 0|1` and `pmset -b powermode 0|1|2` without a password.
-It also adds a LaunchDaemon that switches lid sleep back on at boot, because
-macOS keeps `disablesleep` across a restart and a crash could leave lid sleep
-off.
+Claude Code's hooks you add yourself: **Copy Hooks** copies them for
+`~/.claude/settings.json`, or for
+`/Library/Application Support/ClaudeCode/managed-settings.json` where managed
+settings allow only managed hooks (that needs an administrator). The command
+line is the app's binary, `/Applications/Awake.app/Contents/MacOS/awake`;
+`macos/bin/awake` runs it.
 
-Uninstall with `macos/awake/install.sh --uninstall`, then run `admin.sh` again:
-without Awake.app it removes the Claude hooks, the sudoers rule and the boot-time
-reset.
+`macos/awake/release.sh` builds a release: it builds `Awake.xcodeproj`, checks
+both binaries' signatures, notarizes and staples the app, and puts it in a
+signed, notarized DMG in `macos/awake/dist/`, next to a Homebrew cask for it.
+It signs with the keychain's Developer ID Application identity of team
+`KSF29ZC99W` and notarizes with the notarytool keychain profile `notary`;
+`AWAKE_TEAM_ID`, `AWAKE_SIGN_IDENTITY` and `AWAKE_NOTARY_PROFILE` override them.
+`--skip-notarize` checks everything else with any identity.
 
 ## Architecture
 
