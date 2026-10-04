@@ -1,0 +1,141 @@
+#!/bin/bash
+# pc: reach the Windows PC (DESKTOP-PHP1337) from this Mac, and check every way in.
+# The PC side is new-pc-setup's scripts/remote-access.ps1; the Mac side is mac-setup's README,
+# "The Windows PC". Everything goes through Tailscale.
+set -u
+
+ts=/Applications/Tailscale.app/Contents/MacOS/Tailscale
+name=DESKTOP-PHP1337
+host=desktop-php1337.taila19d44.ts.net
+ip=100.86.15.93
+repair='ssh pc "t3 pair --tailscale --ttl 30m --label MacBook"'
+
+usage() {
+  cat <<'EOF'
+pc               open PowerShell on the PC (same as ssh pc)
+pc status        check every way in: Tailscale, SSH, T3 Code, Moonlight, RustDesk
+pc screen        stream the PC's desktop to Moonlight, quality picked by the network you are on
+pc rustdesk      start RustDesk on the PC and connect over Tailscale (pc rustdesk stop ends it)
+pc wake          turn the PC on (home network only)
+EOF
+}
+
+# How Tailscale reaches the PC: "lan <time>", "direct <time>", "relay:<region> <time>" or "offline".
+# tailscale ping stops early once it has a direct path, so the last pong shows the path in use.
+route() {
+  local pong via ms
+  pong=$("$ts" ping -c 4 --timeout 3s "$name" 2>/dev/null | grep '^pong' | tail -1)
+  [ -n "$pong" ] || { echo offline; return; }
+  via=$(sed -E 's/.* via ([^ ]+) in .*/\1/' <<<"$pong")
+  ms=$(sed -E 's/.* in ([0-9.]+m?s)$/\1/' <<<"$pong")
+  case $via in
+    DERP*) echo "relay:$(sed -E 's/DERP\((.*)\)/\1/' <<<"$via") $ms" ;;
+    192.168.*|10.*|172.1[6-9].*|172.2[0-9].*|172.3[01].*) echo "lan $ms" ;;
+    *) echo "direct $ms" ;;
+  esac
+}
+
+# Runs on the PC in one SSH round trip and prints key=value lines.
+read -r -d '' probe <<'EOF'
+$ErrorActionPreference = 'SilentlyContinue'
+"boot=$((Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToString('ddd HH:mm'))"
+"t3task=$((Get-ScheduledTask 'T3 Code server').State)"
+$app = Get-Process 'T3 Code (Alpha)'
+$set = Get-Content "$HOME\.t3\userdata\desktop-settings.json" -Raw | ConvertFrom-Json
+"t3app=$(if (-not $app) { 'closed' } elseif ($set.localEnvironmentEnabled -eq $false) { 'client' } else { 'hosting' })"
+$mac = @(& "$HOME\.local\bin\t3.cmd" auth session list --json | ConvertFrom-Json) | Where-Object { $_.client.label -eq 'MacBook' } |
+  Sort-Object { [datetime]$_.expiresAt } | Select-Object -Last 1
+"macpair=$(if ($mac) { [int][math]::Floor(([datetime]$mac.expiresAt - (Get-Date)).TotalDays) } else { 'none' })"
+"sunshine=$((Get-Service SunshineService).Status)"
+"displays=$(@(Get-CimInstance -Namespace root\wmi WmiMonitorBasicDisplayParams | Where-Object Active).Count)"
+"rustdesk=$((Get-Service RustDesk).Status)"
+$rd = Join-Path $env:SystemRoot 'ServiceProfiles\LocalService\AppData\Roaming\RustDesk\config\RustDesk.toml'
+"rdpassword=$(if ((Get-Content $rd -Raw) -match "(?m)^password = '[^']+'") { 'set' } else { 'missing' })"
+EOF
+
+status() {
+  local bad=0 r kind ms info code k v
+  local boot='' t3task='' t3app='' macpair='' sunshine='' displays='' rustdesk='' rdpassword=''
+  line() { printf '%-11s %-5s %s\n' "$1" "$2" "$3"; [ "$2" = ok ] || bad=1; }
+
+  r=$(route); kind=${r%% *}; ms=${r#* }
+  case $kind in
+    offline) line Tailscale FAIL "$name does not answer: off, asleep or offline (pc wake works from home)"; return 1 ;;
+    lan) line Tailscale ok "home network, $ms" ;;
+    direct) line Tailscale ok "direct over the internet, $ms" ;;
+    relay:*) line Tailscale warn "through Tailscale's ${kind#relay:} relay, $ms: fine for SSH and T3, too slow for Moonlight" ;;
+  esac
+
+  # A fresh connection (-S none): a stale shared one would hang instead of answering.
+  if info=$(ssh -S none -o ConnectTimeout=10 -o BatchMode=yes pc '$input | Out-String | Invoke-Expression' <<<"$probe" 2>/dev/null); then
+    while IFS='=' read -r k v; do
+      v=${v%$'\r'}
+      case $k in
+        boot) boot=$v ;; t3task) t3task=$v ;; t3app) t3app=$v ;; macpair) macpair=$v ;;
+        sunshine) sunshine=$v ;; displays) displays=$v ;; rustdesk) rustdesk=$v ;; rdpassword) rdpassword=$v ;;
+      esac
+    done <<<"$info"
+    line SSH ok "PowerShell on $name, up since $boot"
+  else
+    line SSH FAIL "ssh pc does not answer"
+  fi
+
+  code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "https://$host/.well-known/t3/environment")
+  if [ "$t3app" = hosting ]; then line 'T3 Code' FAIL "the T3 desktop app on the PC runs its own server on the same data: quit it there"
+  elif [ "$code" = 200 ]; then line 'T3 Code' ok "https://$host answers (server task: ${t3task:-unknown})"
+  else line 'T3 Code' FAIL "https://$host answers $code (server task: ${t3task:-unknown})"; fi
+  case $macpair in
+    ''|none) line 'T3 pairing' FAIL "the Mac has no T3 session on the PC: pair with $repair" ;;
+    *) if [ "$macpair" -le 7 ]; then line 'T3 pairing' warn "ends in $macpair days: pair again with $repair"
+       else line 'T3 pairing' ok "valid for $macpair more days"; fi ;;
+  esac
+
+  if [ "$sunshine" != Running ]; then line Moonlight FAIL "Sunshine is ${sunshine:-unknown} on the PC (ssh pc \"Restart-Service SunshineService\")"
+  elif ! nc -z -G 4 "$ip" 47989 2>/dev/null; then line Moonlight FAIL "Sunshine runs but does not answer on $ip"
+  elif [ "${displays:-0}" = 0 ]; then line Moonlight warn "Sunshine runs, but no monitor is active on the PC, so the stream may stay black"
+  else line Moonlight ok "Sunshine runs, $displays monitor(s) active"; fi
+
+  if [ "$rdpassword" != set ]; then line RustDesk warn "no permanent password: every connection waits for someone at the PC to accept"
+  else line RustDesk ok "on demand, now ${rustdesk:-unknown} (pc rustdesk starts it)"; fi
+  return $bad
+}
+
+screen() {
+  local r kind
+  if pgrep -qf 'Moonlight.app/Contents/MacOS/Moonlight'; then
+    open -a Moonlight; echo "Moonlight is already open."; return
+  fi
+  r=$(route); kind=${r%% *}
+  case $kind in
+    offline) echo "pc: $name does not answer over Tailscale (try pc status)" >&2; return 1 ;;
+    lan) set -- --1080 --fps 120 --bitrate 28000 ;;
+    direct) set -- --1080 --fps 60 --bitrate 12000 ;;
+    relay:*) set -- --720 --fps 30 --bitrate 5000
+             echo "Relayed through Tailscale (${r#* }): expect lag. SSH and T3 work better from here." ;;
+  esac
+  echo "Streaming $name (${kind%%:*}, $*)"
+  open -a Moonlight --args stream "$name" Desktop "$@" --display-mode windowed --absolute-mouse --frame-pacing --vsync
+}
+
+rustdesk() {
+  if [ "${1:-}" = stop ]; then
+    ssh pc 'Stop-Service RustDesk' && echo "RustDesk stopped on $name."; return
+  fi
+  ssh pc 'Start-Service RustDesk' || return 1
+  for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do nc -z -G 2 "$ip" 21118 2>/dev/null && break; sleep 1; done
+  if ! nc -z -G 2 "$ip" 21118 2>/dev/null; then
+    echo "pc: RustDesk on $name does not listen on 21118; re-run new-pc-setup's remote-access.ps1" >&2; return 1
+  fi
+  open -a RustDesk --args --connect "$ip"
+  echo "RustDesk runs on $name; connecting to $ip. End it with: pc rustdesk stop"
+}
+
+case ${1:-} in
+  '') exec ssh pc ;;
+  status) status ;;
+  screen) screen ;;
+  rustdesk) shift; rustdesk "$@" ;;
+  wake) exec "$(dirname "$0")/../bin/wake" pc ;;
+  -h|--help|help) usage ;;
+  *) usage >&2; exit 2 ;;
+esac

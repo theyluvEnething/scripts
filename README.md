@@ -27,6 +27,7 @@ windows/         Windows-only tools: ls, cwd, sh, restart-fortnite
 windows/bin/     .bat launchers, the folder Windows has on PATH
 macos/awake/     awake, a Swift menu bar app and command line (see below)
 macos/power-log/ logs battery drain and the apps behind it every 5 minutes
+macos/pc/        pc, every way from the Mac into the Windows PC
 macos/bin/       launchers for the shared tools, the folder the Mac has on PATH
 docs/            design notes
 ```
@@ -56,6 +57,19 @@ PowerShell, or a Unix terminal.
 Names go in `~/.config/utilkit/config.toml` as a `[wake]` table, e.g. `pc = "34:5a:60:57:c2:e6"`.
 The target needs Wake-on-LAN enabled in its BIOS and network adapter, and the packet only
 reaches the local network, so from outside home a device there has to send it.
+
+### The Windows PC (macOS)
+
+| Command | Description |
+| --- | --- |
+| `pc` | Open PowerShell on the PC (`ssh pc`). |
+| `pc status` | Check every way in: Tailscale's path and latency, SSH, T3 Code and the days left on the Mac's T3 pairing, Sunshine and the PC's monitors, RustDesk. Exits 1 if anything needs attention. |
+| `pc screen` | Stream the PC's desktop to Moonlight: 1080p 120 FPS on the home LAN, 1080p 60 FPS direct over the internet, 720p 30 FPS through a Tailscale relay. |
+| `pc rustdesk` | Start RustDesk on the PC and connect straight to its Tailscale address. `pc rustdesk stop` ends it. |
+| `pc wake` | Same as `wake pc`. |
+
+Everything runs over Tailscale and `ssh pc`; the setup itself lives in mac-setup (README, "The
+Windows PC") and new-pc-setup (`scripts/remote-access.ps1`).
 
 ### SSH sessions
 
