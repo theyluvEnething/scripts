@@ -25,7 +25,6 @@ shared/utilkit/  shared library imported by every tool
 shared/tests/    unit tests for utilkit
 windows/         Windows-only tools: ls, cwd, sh, restart-fortnite, t3-pair
 windows/bin/     .bat launchers, the folder Windows has on PATH
-macos/awake/     awake, a Swift menu bar app and command line (see below)
 macos/power-log/ logs battery drain and the apps behind it every 5 minutes
 macos/pc/        pc, every way from the Mac into the Windows PC
 macos/bin/       launchers for the shared tools, the folder the Mac has on PATH
@@ -130,77 +129,9 @@ anything that ignores it — so the editor can be started fresh. Windows only.
 
 ### awake (macOS)
 
-Keeps a MacBook running with the lid closed while Claude Code or Codex is
-working, and lets it sleep normally otherwise. On Apple Silicon without an
-external display, only turning lid sleep off with the kernel's `SleepDisabled`
-setting (`pmset -a disablesleep`) does that, and it turns off every other kind
-of sleep with it; `caffeinate` only stops idle sleep. awake owns that setting.
-
-Claude Code and Codex hooks mark each session as working from a prompt or
-tool call until its turn ends. Lid sleep is off while a turn runs and comes
-back on a minute after the last one finishes; if the lid is closed by then,
-awake puts the Mac to sleep. A turn that sends no hook for 15 minutes, or whose
-agent process is gone, no longer counts.
-
-The cup in the menu bar shows what closing the lid does: an outline cup sleeps,
-a filled cup keeps running, and a badge means lid sleep was changed outside
-Awake or its helper isn't set up. The menu has:
-
-- **Awake**: keeps the Mac running with the lid closed while Claude or Codex
-  works. Unticked, the mode is Off: closing the lid puts the Mac to sleep.
-- **Sleep Now**: shown while lid sleep is off, because macOS ignores the Apple
-  menu's Sleep then.
-- **Settings…**: also has **Stay awake indefinitely**: even when nothing runs,
-  until you turn it off, restart or log out. The window shows lid sleep, what
-  holds the Mac awake, the battery, the thermal state and Low Power.
-- **Uninstall Awake…**: turns lid sleep back on, removes the helper, the login
-  items, the Codex hooks and Awake's state and log, and moves the app to the
-  Trash.
-
-Whatever the mode, awake lets the Mac sleep at 20 % battery unless it is
-charging (until it is back above 25 %), at 40 °C battery temperature (until
-below 36 °C) and when the thermal state is high or critical. With the lid
-closed on battery it switches to Low Power and restores your energy mode
-afterwards. It never touches display settings. Changes go to
-`~/Library/Logs/awake.log`.
-
-| Command | Description |
-| --- | --- |
-| `awake run -- <command>` | Keep the Mac running while the command runs; passes Ctrl-C through and returns its exit code. |
-| `awake for 90m` | Keep it running for a time (`90s`, `2h`, `1h30m`). `awake stop` ends every run and for. |
-| `awake set off\|auto\|on` | Choose Off, Awake or Stay awake indefinitely. |
-| `awake status` | The Settings window's rows: mode, lid sleep, what holds the Mac awake, the battery, the thermal state and Low Power. |
-
-To install, open `Awake-<version>.dmg` from the
-[releases](https://github.com/theyluvEnething/toybox/releases), drag Awake to
-Applications and open it there. **Set Up Awake** in its setup window installs:
-
-- A helper that runs as root and does nothing but `pmset -a disablesleep 0|1`
-  and `pmset -b powermode 0|1|2`, and only for Awake's own app: it checks that
-  the caller is signed by Awake's team as Awake. It also switches lid sleep back
-  on once at every startup, because macOS keeps `disablesleep` across a restart
-  and a crash could leave lid sleep off, and whenever the helper is switched
-  off or the app is gone. macOS asks you to allow it in System Settings >
-  General > Login Items & Extensions.
-- Two login items: the menu, and a check every 30 seconds that keeps working if
-  the menu crashes or is quit.
-- Its hooks in `~/.codex/hooks.json`, next to your own; trust them once with
-  `/hooks` in Codex.
-
-Claude Code's hooks you add yourself: **Copy Hooks** copies them for
-`~/.claude/settings.json`, or for
-`/Library/Application Support/ClaudeCode/managed-settings.json` where managed
-settings allow only managed hooks (that needs an administrator). The command
-line is the app's binary, `/Applications/Awake.app/Contents/MacOS/awake`;
-`macos/bin/awake` runs it.
-
-`macos/awake/release.sh` builds a release: it builds `Awake.xcodeproj`, checks
-both binaries' signatures, notarizes and staples the app, and puts it in a
-signed, notarized DMG in `macos/awake/dist/`, next to a Homebrew cask for it.
-It signs with the keychain's Developer ID Application identity of team
-`KSF29ZC99W` and notarizes with the notarytool keychain profile `notary`;
-`AWAKE_TEAM_ID`, `AWAKE_SIGN_IDENTITY` and `AWAKE_NOTARY_PROFILE` override them.
-`--skip-notarize` checks everything else with any identity.
+[Awake](https://github.com/theyluvEnething/awake) now has its own repository,
+source history and [releases](https://github.com/theyluvEnething/awake/releases).
+Its menu app and command-line wrapper are maintained there.
 
 ### power-log (macOS)
 
@@ -227,8 +158,6 @@ Shared logic lives in `shared/utilkit/` so the tools don't duplicate it:
   consoles).
 
 ## Tests
-
-awake: `swift test --package-path macos/awake --scratch-path macos/awake/build`
 
 ```
 python shared/tests/test_utilkit.py                    # Windows
