@@ -65,7 +65,7 @@ reaches the local network, so from outside home a device there has to send it.
 | `pc` | Open PowerShell on the PC (`ssh pc`). |
 | `pc status` | Check every way in: Tailscale's path and latency, SSH, T3 Code and the days left on the Mac's T3 pairing, Sunshine and the PC's monitors, RustDesk. Exits 1 if anything needs attention. |
 | `pc screen` | Stream the PC's desktop to Moonlight: 1080p 120 FPS on the home LAN, 1080p 60 FPS direct over the internet, 720p 30 FPS through a Tailscale relay. |
-| `pc rustdesk` | Connect to the PC with RustDesk, straight to its Tailscale address. |
+| `pc rustdesk` | Connect to the PC with RustDesk by its RustDesk ID. |
 | `pc wake` | Same as `wake pc`. |
 
 Everything runs over Tailscale and `ssh pc`; the setup itself lives in mac-setup (README, "The

@@ -8,6 +8,7 @@ ts=/Applications/Tailscale.app/Contents/MacOS/Tailscale
 name=DESKTOP-PHP1337
 host=desktop-php1337.taila19d44.ts.net
 ip=100.86.15.93
+rdid=486797781
 repair='ssh pc "t3 pair --tailscale --ttl 30m --label MacBook"'
 
 usage() {
@@ -15,7 +16,7 @@ usage() {
 pc               open PowerShell on the PC (same as ssh pc)
 pc status        check every way in: Tailscale, SSH, T3 Code, Moonlight, RustDesk
 pc screen        stream the PC's desktop to Moonlight, quality picked by the network you are on
-pc rustdesk      connect to the PC with RustDesk, directly over Tailscale
+pc rustdesk      connect to the PC with RustDesk (its RustDesk ID)
 pc wake          turn the PC on (home network only)
 EOF
 }
@@ -128,8 +129,8 @@ rustdesk() {
   if ! nc -z -G 2 "$ip" 21118 2>/dev/null; then
     echo "pc: RustDesk on $name does not listen on 21118; re-run new-pc-setup's remote-access.ps1" >&2; return 1
   fi
-  open -a RustDesk --args --connect "$ip"
-  echo "Connecting to $name ($ip) with RustDesk."
+  open -a RustDesk --args --connect "$rdid"
+  echo "Connecting to $name (RustDesk ID $rdid)."
 }
 
 case ${1:-} in
