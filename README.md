@@ -23,7 +23,7 @@ Then run any command by name (e.g. `ports`, `show-port 5000`).
 shared/          Python tools that run on Windows and macOS, one .py per command
 shared/utilkit/  shared library imported by every tool
 shared/tests/    unit tests for utilkit
-windows/         Windows-only tools: ls, cwd, sh, restart-fortnite
+windows/         Windows-only tools: ls, cwd, sh, restart-fortnite, t3-pair
 windows/bin/     .bat launchers, the folder Windows has on PATH
 macos/awake/     awake, a Swift menu bar app and command line (see below)
 macos/power-log/ logs battery drain and the apps behind it every 5 minutes
@@ -67,6 +67,7 @@ reaches the local network, so from outside home a device there has to send it.
 | `pc screen` | Stream the PC's desktop to Moonlight: 1080p 120 FPS on the home LAN, 1080p 60 FPS direct over the internet, 720p 30 FPS through a Tailscale relay. |
 | `pc rustdesk` | Connect to the PC with RustDesk by its RustDesk ID. |
 | `pc wake` | Same as `wake pc`. |
+| `ssh pc t3-pair` | Print a fresh T3 Code pairing link for the Mac, valid for 30 minutes and good once. Use it when `pc status` says the pairing has ended, and paste the link into T3's Settings, Connections, Add environment. `\| pbcopy` puts it on the clipboard. `--label` and `--ttl` change its name and lifetime. Runs on the PC. |
 
 Everything runs over Tailscale and `ssh pc`; the setup itself lives in mac-setup (README, "The
 Windows PC") and new-pc-setup (`scripts/remote-access.ps1`).

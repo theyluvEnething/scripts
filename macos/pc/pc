@@ -9,7 +9,7 @@ name=DESKTOP-PHP1337
 host=desktop-php1337.taila19d44.ts.net
 ip=100.86.15.93
 rdid=486797781
-repair='ssh pc "t3 pair --tailscale --ttl 30m --label MacBook"'
+repair='ssh pc t3-pair'
 
 usage() {
   cat <<'EOF'
