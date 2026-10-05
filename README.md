@@ -66,6 +66,8 @@ reaches the local network, so from outside home a device there has to send it.
 | `pc screen` | Stream the PC's desktop to Moonlight: 1080p 120 FPS on the home LAN, 1080p 60 FPS direct over the internet, 720p 30 FPS through a Tailscale relay. |
 | `pc rustdesk` | Connect to the PC with RustDesk by its RustDesk ID. |
 | `pc wake` | Same as `wake pc`. |
+| `pc get <file>` | Copy a file from the PC (`~\` is the PC user's home) to `~/.cache/pc-edit/` and print the copy's path, so Mac tools can edit it. Bytes, line endings and non-ASCII paths come through unchanged. |
+| `pc put <copy>` | Show the diff and write an edited copy back to the PC. Refuses, writing nothing, if the PC's file changed since `pc get`. |
 | `ssh pc t3-pair` | Print a fresh T3 Code pairing link for the Mac, valid for 30 minutes and good once. Use it when `pc status` says the pairing has ended, and paste the link into T3's Settings, Connections, Add environment. `\| pbcopy` puts it on the clipboard. `--label` and `--ttl` change its name and lifetime. Runs on the PC. |
 
 Everything runs over Tailscale and `ssh pc`; the setup itself lives in mac-setup (README, "The
