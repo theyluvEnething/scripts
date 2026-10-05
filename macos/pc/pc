@@ -160,7 +160,7 @@ Move-Item -LiteralPath "$p.pc-new" -Destination $p -Force
 EOF
 
 b64() { printf '%s' "$1" | base64 | tr -d '\n'; }
-onpc() { ssh -S none -o ConnectTimeout=10 -o BatchMode=yes pc '$input | Out-String | Invoke-Expression' <<<"$1"; }
+onpc() { ssh -S none -o ConnectTimeout=20 -o BatchMode=yes pc '$input | Out-String | Invoke-Expression' <<<"$1"; }
 field() { sed -n "s/^$1=//p" <<<"$2" | tr -d '\r'; }
 sha() { shasum -a 256 "$1" | cut -d' ' -f1 | tr a-f A-F; }
 
@@ -192,6 +192,7 @@ put() {
   case $result in
     changed) echo "pc: $path changed on the PC since pc get; nothing written. Run pc get again and redo the edit." >&2; return 1 ;;
     "$(sha "$file")") printf '%s\n%s\n' "$path" "$result" > "$file.pc"; cp "$file" "$file.orig"; echo "Wrote $path on the PC." ;;
+    '') echo "pc: no answer from the PC, so nothing was confirmed written; pc get $path again to check, then retry" >&2; return 1 ;;
     *) echo "pc: writing $path did not verify; pc get it again to see what the PC has" >&2; return 1 ;;
   esac
 }
