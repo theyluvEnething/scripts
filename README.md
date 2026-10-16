@@ -129,12 +129,6 @@ blocks the next launch until they are ended by hand in Task Manager.
 `restart-fortnite` ends them the same way — a polite close, then a terminate for
 anything that ignores it — so the editor can be started fresh. Windows only.
 
-### awake (macOS)
-
-[Awake](https://github.com/theyluvEnething/awake) now has its own repository,
-source history and [releases](https://github.com/theyluvEnething/awake/releases).
-Its menu app and command-line wrapper are maintained there.
-
 ### power-log (macOS)
 
 `macos/power-log/install.sh` runs `power-log` every 5 minutes through a
