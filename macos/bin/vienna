@@ -1,0 +1,2 @@
+#!/bin/sh
+PC_TARGET=vienna exec "$(dirname "$0")/../pc/pc" "$@"

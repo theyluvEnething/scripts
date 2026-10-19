@@ -1,18 +1,22 @@
 #!/bin/bash
-# pc: reach the Windows PC (DESKTOP-PHP1337) from this Mac, and check every way in.
+# pc: reach the Windows PC (DESKTOP-PHP1337) from this Mac, and check every way in. Called as
+# vienna (PC_TARGET=vienna), the same commands reach the Vienna PC (DESKTOP-V13NNA).
 # The PC side is new-pc-setup's scripts/remote-access.ps1; the Mac side is mac-setup's README,
 # "The Windows PC". Everything goes through Tailscale.
 set -u
 
 ts=/Applications/Tailscale.app/Contents/MacOS/Tailscale
-name=DESKTOP-PHP1337
-host=desktop-php1337.taila19d44.ts.net
-ip=100.86.15.93
-rdid=486797781
-repair='ssh pc t3-pair'
+case ${PC_TARGET:-pc} in
+  vienna)
+    alias=vienna name=DESKTOP-V13NNA host=v13nna.taila19d44.ts.net ip=100.68.85.14 rdid=1428905872
+    repair='ssh vienna t3 pair --tailscale --label MacBook' ;;
+  *)
+    alias=pc name=DESKTOP-PHP1337 host=desktop-php1337.taila19d44.ts.net ip=100.86.15.93 rdid=486797781
+    repair='ssh pc t3-pair' ;;
+esac
 
 usage() {
-  cat <<'EOF'
+  sed "s/^pc /$alias /; s/ssh pc/ssh $alias/" <<'EOF'
 pc               open PowerShell on the PC (same as ssh pc)
 pc status        check every way in: Tailscale, SSH, T3 Code, Moonlight, RustDesk
 pc screen        stream the PC's desktop to Moonlight, quality picked by the network you are on
@@ -27,7 +31,7 @@ EOF
 # tailscale ping stops early once it has a direct path, so the last pong shows the path in use.
 route() {
   local pong via ms
-  pong=$("$ts" ping -c 4 --timeout 3s "$name" 2>/dev/null | grep '^pong' | tail -1)
+  pong=$("$ts" ping -c 4 --timeout 3s "$host" 2>/dev/null | grep '^pong' | tail -1)
   [ -n "$pong" ] || { echo offline; return; }
   via=$(sed -E 's/.* via ([^ ]+) in .*/\1/' <<<"$pong")
   ms=$(sed -E 's/.* in ([0-9.]+m?s)$/\1/' <<<"$pong")
@@ -63,14 +67,14 @@ status() {
 
   r=$(route); kind=${r%% *}; ms=${r#* }
   case $kind in
-    offline) line Tailscale FAIL "$name does not answer: off, asleep or offline (pc wake works from home)"; return 1 ;;
+    offline) line Tailscale FAIL "$name does not answer: off, asleep or offline ($alias wake works from home)"; return 1 ;;
     lan) line Tailscale ok "home network, $ms" ;;
     direct) line Tailscale ok "direct over the internet, $ms" ;;
     relay:*) line Tailscale warn "through Tailscale's ${kind#relay:} relay, $ms: fine for SSH and T3, too slow for Moonlight" ;;
   esac
 
   # A fresh connection (-S none): a stale shared one would hang instead of answering.
-  if info=$(ssh -S none -o ConnectTimeout=10 -o BatchMode=yes pc '$input | Out-String | Invoke-Expression' <<<"$probe" 2>/dev/null); then
+  if info=$(ssh -S none -o ConnectTimeout=10 -o BatchMode=yes "$alias" '$input | Out-String | Invoke-Expression' <<<"$probe" 2>/dev/null); then
     while IFS='=' read -r k v; do
       v=${v%$'\r'}
       case $k in
@@ -80,7 +84,7 @@ status() {
     done <<<"$info"
     line SSH ok "PowerShell on $name, up since $boot"
   else
-    line SSH FAIL "ssh pc does not answer"
+    line SSH FAIL "ssh $alias does not answer"
   fi
 
   code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "https://$host/.well-known/t3/environment")
@@ -93,12 +97,12 @@ status() {
        else line 'T3 pairing' ok "valid for $macpair more days"; fi ;;
   esac
 
-  if [ "$sunshine" != Running ]; then line Moonlight FAIL "Sunshine is ${sunshine:-unknown} on the PC (ssh pc \"Restart-Service SunshineService\")"
+  if [ "$sunshine" != Running ]; then line Moonlight FAIL "Sunshine is ${sunshine:-unknown} on the PC (ssh $alias \"Restart-Service SunshineService\")"
   elif ! nc -z -G 4 "$ip" 47989 2>/dev/null; then line Moonlight FAIL "Sunshine runs but does not answer on $ip"
   elif [ "${displays:-0}" = 0 ]; then line Moonlight warn "Sunshine runs, but no monitor is active on the PC, so the stream may stay black"
   else line Moonlight ok "Sunshine runs, $displays monitor(s) active"; fi
 
-  if [ "$rustdesk" != Running ]; then line RustDesk FAIL "the RustDesk service is ${rustdesk:-unknown} on the PC (ssh pc \"Start-Service RustDesk\")"
+  if [ "$rustdesk" != Running ]; then line RustDesk FAIL "the RustDesk service is ${rustdesk:-unknown} on the PC (ssh $alias \"Start-Service RustDesk\")"
   elif [ "$rdpassword" != set ]; then line RustDesk warn "no permanent password: every connection waits for someone at the PC to accept"
   elif ! nc -z -G 4 "$ip" 21118 2>/dev/null; then line RustDesk FAIL "the service runs but does not answer on $ip:21118"
   else line RustDesk ok "running, answers on $ip:21118"; fi
@@ -125,7 +129,7 @@ screen() {
 # The PC's RustDesk service runs from boot; start it anyway in case someone stopped it.
 rustdesk() {
   if ! nc -z -G 2 "$ip" 21118 2>/dev/null; then
-    ssh pc 'Start-Service RustDesk' || return 1
+    ssh "$alias" 'Start-Service RustDesk' || return 1
     for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do nc -z -G 2 "$ip" 21118 2>/dev/null && break; sleep 1; done
   fi
   if ! nc -z -G 2 "$ip" 21118 2>/dev/null; then
@@ -139,7 +143,7 @@ rustdesk() {
 # records its SHA-256; put writes the copy back only while the PC's file still has that hash, so a change
 # made on the PC in between is never overwritten. Paths and bytes travel base64-encoded over one fresh SSH
 # connection: the PC reads piped scripts in its console code page, which would garble non-ASCII text.
-cache="$HOME/.cache/pc-edit"
+cache="$HOME/.cache/$alias-edit"
 
 read -r -d '' fetch <<'EOF'
 $ErrorActionPreference = 'Stop'
@@ -160,7 +164,7 @@ Move-Item -LiteralPath "$p.pc-new" -Destination $p -Force
 EOF
 
 b64() { printf '%s' "$1" | base64 | tr -d '\n'; }
-onpc() { ssh -S none -o ConnectTimeout=20 -o BatchMode=yes pc '$input | Out-String | Invoke-Expression' <<<"$1"; }
+onpc() { ssh -S none -o ConnectTimeout=20 -o BatchMode=yes "$alias" '$input | Out-String | Invoke-Expression' <<<"$1"; }
 field() { sed -n "s/^$1=//p" <<<"$2" | tr -d '\r'; }
 sha() { shasum -a 256 "$1" | cut -d' ' -f1 | tr a-f A-F; }
 
@@ -198,13 +202,14 @@ put() {
 }
 
 case ${1:-} in
-  '') exec ssh pc ;;
+  '') exec ssh "$alias" ;;
   status) status ;;
   screen) screen ;;
   rustdesk) rustdesk ;;
   get) shift; get "$@" ;;
   put) shift; put "$@" ;;
-  wake) exec "$(dirname "$0")/../bin/wake" pc ;;
+  wake) [ "$alias" = pc ] || { echo "vienna: the Vienna PC is on Wi-Fi, so nothing can wake it remotely" >&2; exit 1; }
+        exec "$(dirname "$0")/../bin/wake" pc ;;
   -h|--help|help) usage ;;
   *) usage >&2; exit 2 ;;
 esac
