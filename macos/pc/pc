@@ -47,7 +47,7 @@ read -r -d '' probe <<'EOF'
 $ErrorActionPreference = 'SilentlyContinue'
 "boot=$((Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToString('ddd HH:mm'))"
 "t3task=$((Get-ScheduledTask 'T3 Code server').State)"
-$app = Get-Process 'T3 Code (Alpha)'
+$app = Get-Process 'T3 Code (*)'
 $set = Get-Content "$HOME\.t3\userdata\desktop-settings.json" -Raw | ConvertFrom-Json
 "t3app=$(if (-not $app) { 'closed' } elseif ($set.localEnvironmentEnabled -eq $false) { 'client' } else { 'hosting' })"
 $mac = @(& "$HOME\.local\bin\t3.cmd" auth session list --json | ConvertFrom-Json) | Where-Object { $_.client.label -eq 'MacBook' } |
