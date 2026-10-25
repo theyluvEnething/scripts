@@ -1,2 +1,3 @@
 #!/bin/sh
-PC_TARGET=vienna exec "$(dirname "$0")/../pc/pc" "$@"
+# Records the run, then starts the command named like this file: see ../run.
+exec "$(dirname "$0")/../run" "$(basename "$0")" "$@"

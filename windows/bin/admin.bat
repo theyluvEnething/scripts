@@ -1,2 +1,3 @@
 @echo off
-powershell -Command "Start-Process cmd.exe -ArgumentList '/s /k pushd . && cd /d %cd%' -Verb RunAs"
+rem Records the run, then starts the command named like this file: see shared\run.py.
+python "%~dp0..\..\shared\run.py" %~n0 %*

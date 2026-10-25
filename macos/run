@@ -1,0 +1,21 @@
+#!/bin/sh
+# macOS launcher: every macos/bin/<command> is the same line and passes its own name here. This
+# records the run in the usage log (format in shared/utilkit/usage.py), then starts the command:
+# pc and vienna directly, everything else through uv in shared/'s environment.
+here=$(cd "$(dirname "$0")" && pwd -P)
+command=$1
+shift
+
+log=${XDG_STATE_HOME:-$HOME/.local/state}/scripts/usage.tsv
+case $command in
+  pc|vienna) case ${1:-} in '') verb=shell ;; status|screen|rustdesk|wake|get|put|help) verb=$1 ;; *) verb=other ;; esac ;;
+  *) verb= ;;
+esac
+if [ -t 0 ]; then from=terminal; else from=script; fi
+{ mkdir -p "${log%/*}" && printf '%s\t%s\t%s\t%s\n' "$(date +%Y-%m-%dT%H:%M:%S%z)" "$command" "$verb" "$from" >> "$log"; } 2>/dev/null
+
+case $command in
+  pc) exec "$here/pc/pc" "$@" ;;
+  vienna) PC_TARGET=vienna exec "$here/pc/pc" "$@" ;;
+  *) exec uv run --quiet --project "$here/../shared" "$here/../shared/$command.py" "$@" ;;
+esac

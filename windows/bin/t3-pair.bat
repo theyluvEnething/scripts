@@ -1,5 +1,3 @@
 @echo off
-setlocal
-rem t3-pair.py lives in windows\ but imports utilkit from shared\
-set "PYTHONPATH=%~dp0..\..\shared;%PYTHONPATH%"
-python "%~dp0..\t3-pair.py" %*
+rem Records the run, then starts the command named like this file: see shared\run.py.
+python "%~dp0..\..\shared\run.py" %~n0 %*

@@ -1,5 +1,3 @@
 @echo off
-setlocal
-rem restart-fortnite.py lives in windows\ but imports utilkit from shared\
-set "PYTHONPATH=%~dp0..\..\shared;%PYTHONPATH%"
-python "%~dp0..\restart-fortnite.py" %*
+rem Records the run, then starts the command named like this file: see shared\run.py.
+python "%~dp0..\..\shared\run.py" %~n0 %*

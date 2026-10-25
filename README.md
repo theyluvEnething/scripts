@@ -15,22 +15,37 @@ launcher runs its tool with `uv run --project shared`, so the first run creates
 `shared/.venv` from `shared/pyproject.toml` and nothing goes into the system
 Python.
 
-Then run any command by name (e.g. `ports`, `show-port 5000`).
+Then run any command by name (e.g. `ports`, `show-port 5000`). `scripts` lists them all.
 
 ## Layout
 
 ```
 shared/          Python tools that run on Windows and macOS, one .py per command
+shared/run.py    the Windows runner every .bat launcher calls
 shared/utilkit/  shared library imported by every tool
-shared/tests/    unit tests for utilkit
+shared/tests/    unit tests
 windows/         Windows-only tools: admin, restart-fortnite, t3-pair
 windows/bin/     .bat launchers, the folder Windows has on PATH
+macos/run        the macOS runner every launcher calls
 macos/power-log/ logs battery drain and the apps behind it every 5 minutes
 macos/pc/        pc, every way from the Mac into the Windows PC
-macos/bin/       launchers for the shared tools, the folder the Mac has on PATH
+macos/bin/       launchers, the folder the Mac has on PATH
 ```
 
-Every launcher is a small shim named after its command.
+Every launcher is the same line and passes its own file name to its platform's runner, so a
+new command needs only its tool file and a copy of any launcher named after it.
+
+## Usage counts
+
+The runners add a line to a per-machine log for every run before starting the command:
+`~/.local/state/scripts/usage.tsv` on the Mac, `%LOCALAPPDATA%\scripts\usage.tsv` on Windows.
+Each line holds the time, the command, the subcommand for `pc` and `vienna` (no other
+arguments), and whether a person typed it (`terminal`) or an agent or program ran it (`script`).
+
+| Command | Description |
+| --- | --- |
+| `scripts` | List every command on this machine with its runs, how many you typed, its last run and what it does. Also the index when a name slips your mind. |
+| `scripts --all` | The same for the Mac plus the Windows PCs over SSH (`pc`, `vienna`); a PC that does not answer is skipped. |
 
 ## Commands
 
