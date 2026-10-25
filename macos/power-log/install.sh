@@ -5,7 +5,7 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd -P)"
-label=toybox.power-log
+label=scripts.power-log
 plist="$HOME/Library/LaunchAgents/$label.plist"
 domain="gui/$(id -u)"
 
