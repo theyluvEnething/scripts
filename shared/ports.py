@@ -22,7 +22,12 @@ def main():
         [str(e["port"]), e["process"], str(e["pid"]), e["cmdline"] or "—"]
         for e in entries
     ]
-    ui.table(rows, ["PORT", "PROCESS", "PID", "PATH"], aligns=["r", "l", "r", "l"])
+    headers = ["PORT", "PROCESS", "PID", "PATH"]
+    if sys.stdout.isatty():  # fit the window; piped output keeps whole paths
+        fixed = sum(max(len(h), *(len(r[i]) for r in rows)) + 2 for i, h in enumerate(headers[:3]))
+        for row in rows:
+            row[3] = ui.truncate(row[3], max(20, ui.term_width() - fixed))
+    ui.table(rows, headers, aligns=["r", "l", "r", "l"])
 
 
 if __name__ == "__main__":

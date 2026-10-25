@@ -111,6 +111,7 @@ def main():
             print()
             runs = remote(host)
             if runs is None:
+                sys.stdout.flush()  # warnings go to stderr, which would otherwise print first
                 ui.warn(f"ssh {host} did not answer; its counts are not shown.")
                 continue
             show(f"Commands on {host}", runs, installed(True), True)

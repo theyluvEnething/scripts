@@ -10,9 +10,54 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from utilkit import config, ui, usage  # noqa: E402
+from utilkit import config, ports, ui, usage  # noqa: E402
 
 SHARED = Path(__file__).resolve().parent.parent
+# Listens on a free port and prints it; with an argument it also ignores SIGTERM.
+LISTENER = """
+import signal, socket, sys, time
+if len(sys.argv) > 1:
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+s = socket.socket()
+s.bind(("127.0.0.1", 0))
+s.listen()
+print(s.getsockname()[1], flush=True)
+time.sleep(60)
+"""
+
+
+class TestPorts(unittest.TestCase):
+    def listener(self, *args):
+        proc = subprocess.Popen([sys.executable, "-c", LISTENER, *args], stdout=subprocess.PIPE, text=True)
+        for cleanup in (proc.wait, proc.kill, proc.stdout.close):  # run in reverse order
+            self.addCleanup(cleanup)
+        return proc, int(proc.stdout.readline())
+
+    def test_ps_durations(self):
+        self.assertEqual(ports._seconds("05:07"), 307)
+        self.assertEqual(ports._seconds("01:02:03"), 3723)
+        self.assertEqual(ports._seconds("2-01:00:00"), 176400)
+        self.assertAlmostEqual(ports._seconds("0:00.52"), 0.52)
+
+    def test_finds_describes_and_stops_a_listener(self):
+        proc, port = self.listener()
+        entries = ports.on_port(port)
+        self.assertEqual([e["pid"] for e in entries], [proc.pid])
+        self.assertTrue(entries[0]["cmdline"], "no executable path")
+        detail = ports.process_detail(proc.pid)
+        self.assertEqual(detail["pid"], proc.pid)
+        self.assertGreater(detail["memory_mb"], 0)
+        ok, how = ports.kill(proc.pid)
+        self.assertTrue(ok, how)
+        self.assertIn(how, ("stopped", "killed"))
+        self.assertEqual(ports.on_port(port), [])
+
+    def test_force_kills_what_ignores_the_request(self):
+        if os.name == "nt":
+            self.skipTest("Windows force-stops at once")
+        proc, _ = self.listener("ignore-term")
+        self.assertEqual(ports.kill(proc.pid, grace=0.5), (True, "killed"))
+        self.assertEqual(proc.wait(5), -9)
 
 
 class TestUsage(unittest.TestCase):

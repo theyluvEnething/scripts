@@ -53,13 +53,14 @@ arguments), and whether a person typed it (`terminal`) or an agent or program ra
 
 | Command | Description |
 | --- | --- |
-| `ports` | List every listening TCP port and the process that owns it. |
-| `show-port <PORT>` | Show what is listening on a port (read-only). Alias: `check-port`. |
-| `stop-port <PORT>` | Kill whatever owns a port and report what was killed. `--dry-run` to preview. |
+| `ports` | List every listening TCP port with the process that owns it and its executable. |
+| `show-port <PORT>` | Show what is listening on a port, with its memory, CPU, threads and uptime (read-only). Alias: `check-port`. |
+| `stop-port <PORT>` | Stop whatever owns a port and report it. `--dry-run` to preview. |
 
-Port lookups use PowerShell (`Get-NetTCPConnection`) on Windows and `ss`/`lsof`
-on Unix — invoked internally, so the tools work the same from `cmd`,
-PowerShell, or a Unix terminal.
+Port lookups use PowerShell (`Get-NetTCPConnection`) on Windows and `ss` or `lsof` with `ps` on
+the Mac, so the tools work the same from `cmd`, PowerShell or a Unix terminal. On the Mac
+`stop-port` asks the process to quit, so a server can close its files, and force-kills it only
+if it is still running after 3 seconds; it says which it did. Windows force-stops at once.
 
 ### Wake-on-LAN
 
@@ -110,7 +111,7 @@ anything that ignores it — so the editor can be started fresh. Windows only.
 LaunchAgent. Each run adds a line to `~/Library/Logs/power-log.log` with the
 battery percentage, the battery's raw charge in mAh, its power in watts
 (negative while discharging), charger, lid and lid sleep, and the eight apps
-with the highest Energy Impact at that moment, as Activity Monitor shows it. A gap between
+with the highest Energy Impact at that moment, as Activity Monitor shows it, by full name. A gap between
 lines means the Mac slept. The log keeps about 1–2 MB. `install.sh
 --uninstall` removes it.
 
@@ -121,6 +122,7 @@ Shared logic lives in `shared/utilkit/` so the tools don't duplicate it:
 - `config.py`: reads `~/.config/utilkit/config.toml`.
 - `ports.py` / `platform_ps.py`: port lookup and process control per platform.
 - `ui.py`: shared colors, tables and cards, with an ASCII fallback on legacy consoles.
+- `usage.py`: writes and reads the usage log.
 
 ## Tests
 
@@ -131,5 +133,5 @@ uv run --project shared python -m unittest discover -s shared/tests          # m
 
 ## Disclaimer
 
-`stop-port` and `restart-fortnite` kill processes immediately; use `--dry-run`
+`stop-port` and `restart-fortnite` stop processes without asking; use `--dry-run`
 first if unsure.

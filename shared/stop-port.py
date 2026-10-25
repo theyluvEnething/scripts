@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""stop-port <PORT> — kill whatever is listening on a port and report it.
+"""stop-port <PORT> — stop whatever is listening on a port and report it.
 
-Kills immediately (no confirmation). ``--dry-run`` only shows what would be
-killed, equivalent to ``check-port``.
+Acts without confirmation. On the Mac it asks the process to quit and force-kills it only if it
+is still running after 3 seconds; on Windows it force-stops at once. ``--dry-run`` only shows
+what would be stopped.
 """
 import sys
 
@@ -48,9 +49,9 @@ def main():
         success, message = ports.kill(pid)
         label = f"{entry['process']} (PID {pid})"
         if success:
-            ui.ok(f"killed {ui.style(label, 'bold')} on :{port}")
+            ui.ok(f"{message} {ui.style(label, 'bold')} on :{port}")
         else:
-            ui.error(f"failed to kill {label}: {message}")
+            ui.error(f"could not stop {label}: {message}")
             failures += 1
 
     if failures:

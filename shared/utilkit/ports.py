@@ -10,14 +10,18 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 
 from . import platform_ps
 
 _PS_LIST = r"""
 $ErrorActionPreference = 'SilentlyContinue'
 $conns = Get-NetTCPConnection -State Listen
+# One process lookup for all connections instead of one Get-Process call each.
+$procs = @{}
+foreach ($p in Get-Process) { $procs[$p.Id] = $p }
 $out = foreach ($c in $conns) {
-    $p = Get-Process -Id $c.OwningProcess -ErrorAction SilentlyContinue
+    $p = $procs[[int]$c.OwningProcess]
     [pscustomobject]@{
         port    = $c.LocalPort
         pid     = $c.OwningProcess
@@ -108,6 +112,53 @@ def _from_lsof():
     return rows
 
 
+def _ps(fields, pids):
+    """``ps -o <fields>`` for some PIDs: one line each, ``pid`` first, ``comm`` (which may hold
+    spaces) last. Empty if ps fails."""
+    if not pids:
+        return []
+    try:
+        out = subprocess.run(["ps", "-o", fields, "-p", ",".join(str(p) for p in pids)],
+                             capture_output=True, text=True, timeout=10).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return [line.split(None, fields.count(",")) for line in out.splitlines() if line.strip()]
+
+
+def _exe_path(pid):
+    """The executable's full path: proc_pidpath on macOS, /proc on Linux. Empty if unknown.
+
+    ps -o comm is no substitute: for a program started from a shell it holds only the name typed.
+    """
+    if sys.platform == "darwin":
+        import ctypes
+
+        buf = ctypes.create_string_buffer(4096)
+        if ctypes.CDLL("/usr/lib/libproc.dylib").proc_pidpath(int(pid), buf, len(buf)) > 0:
+            return buf.value.decode("utf-8", "replace")
+        return ""
+    try:
+        return os.readlink(f"/proc/{int(pid)}/exe")
+    except OSError:
+        return ""
+
+
+def _with_paths(rows):
+    """ss and lsof name the process but not its executable."""
+    for r in rows:
+        r["cmdline"] = r["cmdline"] or _exe_path(r["pid"])
+    return rows
+
+
+def _seconds(text):
+    """ps durations: ``[[dd-]hh:]mm:ss[.cc]``."""
+    days, _, rest = text.strip().rpartition("-")
+    total = 0.0
+    for part in rest.split(":"):
+        total = total * 60 + float(part)
+    return total + int(days or 0) * 86400
+
+
 def list_listening():
     """Return all listening TCP ports with their owning process, sorted by port."""
     if os.name == "nt":
@@ -116,8 +167,7 @@ def list_listening():
         rows = _from_ss()
         if rows is None:
             rows = _from_lsof()
-        if rows is None:
-            rows = []
+        rows = _with_paths(rows or [])
     seen = set()
     unique = []
     for r in rows:
@@ -167,11 +217,12 @@ def process_detail(pid):
     """Return a dict of rich process info for ``pid``, or ``None`` if unavailable.
 
     Keys: name, pid, path, description, company, memory_mb, cpu_seconds,
-    cpu_percent, threads, uptime_sec. Currently Windows-only (PowerShell);
-    returns ``None`` elsewhere so callers fall back to the basic view.
+    cpu_percent, threads, uptime_sec. Windows reads them with PowerShell, other systems with ps,
+    which has no description or company. On Windows cpu_percent averages over the process's life;
+    ps reports a recent average.
     """
     if os.name != "nt":
-        return None
+        return _unix_detail(int(pid))
     code, out, _ = platform_ps.run(_PS_DETAIL.format(pid=int(pid)))
     if code != 0 or not out.strip():
         return None
@@ -181,17 +232,66 @@ def process_detail(pid):
         return None
 
 
-def kill(pid):
-    """Terminate a process by PID. Returns ``(ok, message)``."""
+def _unix_detail(pid):
+    rows = _ps("pid=,rss=,%cpu=,time=,etime=,comm=", [pid])
+    if not rows or len(rows[0]) != 6:
+        return None
+    _, rss, cpu, cputime, etime, comm = rows[0]
+    path = _exe_path(pid) or comm
+    threads = "—"
+    if sys.platform == "darwin":
+        try:  # ps -M prints a header, then one line per thread
+            out = subprocess.run(["ps", "-M", "-p", str(pid)], capture_output=True, text=True, timeout=10).stdout
+            threads = max(0, len(out.splitlines()) - 1) or "—"
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return {
+        "name": os.path.basename(path), "pid": pid, "path": path, "description": "", "company": "",
+        "memory_mb": round(int(rss) / 1024, 1), "cpu_seconds": round(_seconds(cputime), 1),
+        "cpu_percent": float(cpu), "threads": threads, "uptime_sec": int(_seconds(etime)),
+    }
+
+
+def _alive(pid):
+    """Still running: not gone, and not a zombie waiting for its parent to collect it."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    state = _ps("pid=,stat=", [pid])
+    return bool(state) and not state[0][-1].startswith("Z")
+
+
+def kill(pid, *, grace=3.0):
+    """End a process by PID. Returns ``(ok, how)``.
+
+    Elsewhere than Windows it asks first (SIGTERM), so servers can close their sockets and files,
+    and force-kills (SIGKILL) only what is still running after ``grace`` seconds: ``how`` says
+    "stopped" or "killed". Windows force-stops at once, as Task Manager's End task does.
+    """
     if os.name == "nt":
         code, _, err = platform_ps.run(
             f"Stop-Process -Id {int(pid)} -Force -ErrorAction Stop"
         )
         return (code == 0), (err.strip() or ("killed" if code == 0 else "failed"))
-    try:
-        import signal
+    import signal
+    import time
 
-        os.kill(int(pid), signal.SIGKILL)
+    pid = int(pid)
+    try:
+        os.kill(pid, signal.SIGTERM)
+        deadline = time.monotonic() + grace
+        while time.monotonic() < deadline:
+            if not _alive(pid):
+                return True, "stopped"
+            time.sleep(0.1)
+        os.kill(pid, signal.SIGKILL)
         return True, "killed"
-    except (OSError, ProcessLookupError) as exc:
+    except ProcessLookupError:
+        return True, "stopped"
+    except PermissionError:
+        return False, "permission denied: it belongs to another user (try sudo)"
+    except OSError as exc:
         return False, str(exc)

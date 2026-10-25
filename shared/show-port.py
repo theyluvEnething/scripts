@@ -54,7 +54,7 @@ def _render_process(entry, port):
         fields.append((
             "CPU",
             f"{ui.style(f'{cpu_pct}%', _cpu_color(cpu_pct))} "
-            f"{ui.style(f'(avg over {cpu_sec}s used)', 'dim')}",
+            f"{ui.style(f'({cpu_sec} s of CPU time so far)', 'dim')}",
         ))
         fields.append(("Threads", str(detail.get("threads", "—"))))
         fields.append(("Uptime", _format_uptime(detail.get("uptime_sec"))))
