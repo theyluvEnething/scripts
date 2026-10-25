@@ -21,14 +21,7 @@ _MAC = re.compile(r"^[0-9a-fA-F]{2}([:-]?)(?:[0-9a-fA-F]{2}\1){4}[0-9a-fA-F]{2}$
 
 
 def _names():
-    path = config.config_dir() / "config.toml"
-    try:
-        import tomllib
-
-        with open(path, "rb") as f:
-            return tomllib.load(f).get("wake", {})
-    except (OSError, ImportError, ValueError):
-        return {}
+    return config.load().get("wake", {})
 
 
 def _broadcasts():
