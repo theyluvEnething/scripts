@@ -8,10 +8,12 @@ set -u
 ts=/Applications/Tailscale.app/Contents/MacOS/Tailscale
 case ${PC_TARGET:-pc} in
   vienna)
-    alias=vienna name=DESKTOP-V13NNA host=v13nna.taila19d44.ts.net ip=100.68.85.14 rdid=1428905872
+    alias=vienna name=DESKTOP-V13NNA host=v13nna.taila19d44.ts.net ip=100.68.85.14 rdpeer=1428905872
     repair='ssh vienna t3 pair --tailscale --label MacBook' ;;
   *)
-    alias=pc name=DESKTOP-PHP1337 host=desktop-php1337.taila19d44.ts.net ip=100.86.15.93 rdid=486797781
+    # A firewall rule on this PC blocks RustDesk from the public servers, so its RustDesk ID no longer
+    # connects: the peer is its Tailscale address.
+    alias=pc name=DESKTOP-PHP1337 host=desktop-php1337.taila19d44.ts.net ip=100.86.15.93 rdpeer=100.86.15.93:21118
     repair='ssh pc t3-pair' ;;
 esac
 
@@ -20,7 +22,7 @@ usage() {
 pc               open PowerShell on the PC (same as ssh pc)
 pc status        check every way in: Tailscale, SSH, T3 Code, Moonlight, RustDesk
 pc screen        stream the PC's desktop to Moonlight, quality picked by the network you are on
-pc rustdesk      connect to the PC with RustDesk (its RustDesk ID)
+pc rustdesk      connect to the PC with RustDesk
 pc wake          turn the PC on (home network only)
 pc get <file>    copy a file from the PC (e.g. '~\.claude\settings.json') to edit here; prints the copy's path
 pc put <copy>    write an edited copy back, unless the PC's file changed since pc get
@@ -135,8 +137,8 @@ rustdesk() {
   if ! nc -z -G 2 "$ip" 21118 2>/dev/null; then
     echo "pc: RustDesk on $name does not listen on 21118; re-run new-pc-setup's remote-access.ps1" >&2; return 1
   fi
-  open -a RustDesk --args --connect "$rdid"
-  echo "Connecting to $name (RustDesk ID $rdid)."
+  open "rustdesk://connection/new/$rdpeer"
+  echo "Connecting to $name (RustDesk peer $rdpeer)."
 }
 
 # pc get / pc put edit a PC file with this Mac's tools. get copies the file into ~/.cache/pc-edit and
